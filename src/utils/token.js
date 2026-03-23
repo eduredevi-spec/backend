@@ -1,5 +1,5 @@
-import jwt from 'jsonwebtoken';
-import config from '../config/index.js';
+import jwt from "jsonwebtoken";
+import config from "../config/index.js";
 
 /**
  * Signs a short-lived access token containing the userId.
@@ -24,13 +24,15 @@ export const generateRefreshToken = (userId, familyId) =>
  * Verifies an access token and returns the decoded payload.
  * Throws jwt.TokenExpiredError or jwt.JsonWebTokenError on failure.
  */
-export const verifyAccessToken = (token) => jwt.verify(token, config.jwt.accessSecret);
+export const verifyAccessToken = (token) =>
+  jwt.verify(token, config.jwt.accessSecret);
 
 /**
  * Verifies a refresh token and returns the decoded payload.
  * Throws jwt.TokenExpiredError or jwt.JsonWebTokenError on failure.
  */
-export const verifyRefreshToken = (token) => jwt.verify(token, config.jwt.refreshSecret);
+export const verifyRefreshToken = (token) =>
+  jwt.verify(token, config.jwt.refreshSecret);
 
 /**
  * Convenience helper that generates both tokens in one call.

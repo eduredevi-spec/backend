@@ -1,4 +1,4 @@
-import crypto from 'crypto';
+import crypto from "crypto";
 
 /**
  * Generates a cryptographically random hex string.
@@ -6,7 +6,7 @@ import crypto from 'crypto';
  * Used for: email verification tokens, password reset tokens, invite codes.
  */
 export const generateRandomToken = (length = 32) =>
-  crypto.randomBytes(length).toString('hex');
+  crypto.randomBytes(length).toString("hex");
 
 /**
  * Generates a UUID v4 using the built-in crypto module.
@@ -20,4 +20,4 @@ export const generateFamilyId = () => crypto.randomUUID();
  * not bcrypt — bcrypt can't be used for DB queries since it's one-way with a random salt).
  */
 export const sha256Hash = (data) =>
-  crypto.createHash('sha256').update(data).digest('hex');
+  crypto.createHash("sha256").update(data).digest("hex");

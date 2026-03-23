@@ -1,4 +1,4 @@
-import { HTTP_STATUS, ERROR_CODES } from '../constants/index.js';
+import { HTTP_STATUS, ERROR_CODES } from "../constants/index.js";
 
 /**
  * Custom application error. Carries an HTTP status code, a machine-readable
@@ -14,7 +14,12 @@ export class ApiError extends Error {
 
   /** 400 – validation or malformed request */
   static badRequest(message, details) {
-    return new ApiError(HTTP_STATUS.BAD_REQUEST, message, ERROR_CODES.VALIDATION_ERROR, details);
+    return new ApiError(
+      HTTP_STATUS.BAD_REQUEST,
+      message,
+      ERROR_CODES.VALIDATION_ERROR,
+      details,
+    );
   }
 
   /** 401 – not authenticated; accepts an optional specific error code */
@@ -29,16 +34,28 @@ export class ApiError extends Error {
 
   /** 404 – resource not found */
   static notFound(message) {
-    return new ApiError(HTTP_STATUS.NOT_FOUND, message, ERROR_CODES.RESOURCE_NOT_FOUND);
+    return new ApiError(
+      HTTP_STATUS.NOT_FOUND,
+      message,
+      ERROR_CODES.RESOURCE_NOT_FOUND,
+    );
   }
 
   /** 409 – duplicate / already exists */
   static conflict(message) {
-    return new ApiError(HTTP_STATUS.CONFLICT, message, ERROR_CODES.DUPLICATE_RESOURCE);
+    return new ApiError(
+      HTTP_STATUS.CONFLICT,
+      message,
+      ERROR_CODES.DUPLICATE_RESOURCE,
+    );
   }
 
   /** 500 – unexpected server error */
-  static internal(message = 'Internal server error') {
-    return new ApiError(HTTP_STATUS.INTERNAL_SERVER, message, ERROR_CODES.INTERNAL_ERROR);
+  static internal(message = "Internal server error") {
+    return new ApiError(
+      HTTP_STATUS.INTERNAL_SERVER,
+      message,
+      ERROR_CODES.INTERNAL_ERROR,
+    );
   }
 }

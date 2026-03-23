@@ -1,6 +1,6 @@
-import { ApiError } from '../shared/ApiError.js';
-import { ERROR_CODES } from '../constants/index.js';
-import { HTTP_STATUS } from '../constants/index.js';
+import { ApiError } from "../shared/ApiError.js";
+import { ERROR_CODES } from "../constants/index.js";
+import { HTTP_STATUS } from "../constants/index.js";
 
 /**
  * Middleware factory that validates req.body, req.params, and/or req.query
@@ -14,7 +14,7 @@ import { HTTP_STATUS } from '../constants/index.js';
 export const validate = (schema) => (req, _res, next) => {
   const allErrors = [];
 
-  for (const key of ['body', 'params', 'query']) {
+  for (const key of ["body", "params", "query"]) {
     if (!schema[key]) continue;
 
     const { error, value } = schema[key].validate(req[key], {
@@ -25,8 +25,8 @@ export const validate = (schema) => (req, _res, next) => {
 
     if (error) {
       const details = error.details.map((d) => ({
-        field: d.path.join('.'),
-        message: d.message.replace(/['"]/g, ''),
+        field: d.path.join("."),
+        message: d.message.replace(/['"]/g, ""),
       }));
       allErrors.push(...details);
     } else {
@@ -36,7 +36,12 @@ export const validate = (schema) => (req, _res, next) => {
 
   if (allErrors.length > 0) {
     return next(
-      new ApiError(HTTP_STATUS.BAD_REQUEST, 'Validation error', ERROR_CODES.VALIDATION_ERROR, allErrors)
+      new ApiError(
+        HTTP_STATUS.BAD_REQUEST,
+        "Validation error",
+        ERROR_CODES.VALIDATION_ERROR,
+        allErrors,
+      ),
     );
   }
 

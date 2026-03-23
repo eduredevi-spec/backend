@@ -1,4 +1,6 @@
 import authRouter from "../modules/auth/auth.routes.js";
+import transactionsRouter from "../modules/transactions/transactions.routes.js";
+import { authenticate } from "../middleware/authenticate.js";
 
 /**
  * Mounts all API routers onto the Express app.
@@ -15,9 +17,10 @@ export const loadRoutes = (app) => {
 
   app.use("/api/v1/auth", authRouter);
 
+  app.use("/api/v1/transactions", authenticate, transactionsRouter);
+
   // app.use('/api/v1/accounts',      authenticate, accountsRouter);
   // app.use('/api/v1/categories',    authenticate, categoriesRouter);
-  // app.use('/api/v1/transactions',  authenticate, transactionsRouter);
   // app.use('/api/v1/budgets',       authenticate, budgetsRouter);
   // app.use('/api/v1/savings-goals', authenticate, savingsGoalsRouter);
   // app.use('/api/v1/debts',         authenticate, debtsRouter);

@@ -1,7 +1,7 @@
-import app from './app.js';
-import config from './config/index.js';
-import { connectDB, disconnectDB } from './loaders/mongoose.js';
-import { logger } from './utils/logger.js';
+import app from "./app.js";
+import config from "./config/index.js";
+import { connectDB, disconnectDB } from "./loaders/mongoose.js";
+import { logger } from "./utils/logger.js";
 
 async function start() {
   await connectDB();
@@ -18,11 +18,11 @@ async function start() {
     });
   };
 
-  process.on('SIGTERM', () => shutdown('SIGTERM'));
-  process.on('SIGINT', () => shutdown('SIGINT'));
+  process.on("SIGTERM", () => shutdown("SIGTERM"));
+  process.on("SIGINT", () => shutdown("SIGINT"));
 }
 
 start().catch((err) => {
-  logger.error('Failed to start server', { message: err.message });
+  logger.error("Failed to start server", { message: err.message });
   process.exit(1);
 });

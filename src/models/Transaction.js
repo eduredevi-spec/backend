@@ -68,6 +68,9 @@ transactionSchema.index({ userId: 1, categoryId: 1, date: -1 });
 transactionSchema.index({ userId: 1, type: 1, date: -1 });
 transactionSchema.index({ userId: 1, tags: 1 });
 transactionSchema.index({ recurringRuleId: 1 });
-transactionSchema.index({ idempotencyKey: 1 }, { unique: true, sparse: true });
+transactionSchema.index(
+  { idempotencyKey: 1 },
+  { unique: true, partialFilterExpression: { idempotencyKey: { $type: 'string' } } }
+);
 
 export const Transaction = mongoose.model("Transaction", transactionSchema);

@@ -1,10 +1,14 @@
-import { User } from '../../models/User.js';
-import { RefreshToken } from '../../models/RefreshToken.js';
-import { hashPassword, comparePassword } from '../../utils/password.js';
-import { generateTokenPair, verifyRefreshToken } from '../../utils/token.js';
-import { generateRandomToken, generateFamilyId, sha256Hash } from '../../utils/crypto.js';
-import { ApiError } from '../../shared/ApiError.js';
-import { HTTP_STATUS, ERROR_CODES } from '../../constants/index.js';
+import { User } from "../../models/User.js";
+import { RefreshToken } from "../../models/RefreshToken.js";
+import { hashPassword, comparePassword } from "../../utils/password.js";
+import { generateTokenPair, verifyRefreshToken } from "../../utils/token.js";
+import {
+  generateRandomToken,
+  generateFamilyId,
+  sha256Hash,
+} from "../../utils/crypto.js";
+import { ApiError } from "../../shared/ApiError.js";
+import { HTTP_STATUS, ERROR_CODES } from "../../constants/index.js";
 
 const MAX_LOGIN_ATTEMPTS = 5;
 const LOCKOUT_MS = 15 * 60 * 1000; // 15 minutes
@@ -25,7 +29,12 @@ const sanitizeUser = (user) => ({
 /**
  * Hashes the raw refresh token and persists it in the RefreshToken collection.
  */
-const persistRefreshToken = async (userId, rawToken, familyId, deviceInfo = {}) => {
+const persistRefreshToken = async (
+  userId,
+  rawToken,
+  familyId,
+  deviceInfo = {},
+) => {
   const tokenHash = await hashPassword(rawToken);
   await RefreshToken.create({
     userId,
@@ -52,7 +61,11 @@ const revokeFamily = async (familyId) => {
 export const register = async ({ name, email, password }, deviceInfo = {}) => {
   const existing = await User.findOne({ email });
   if (existing) {
-    throw new ApiError(HTTP_STATUS.CONFLICT, 'Email already registered', ERROR_CODES.EMAIL_ALREADY_EXISTS);
+    throw new ApiError(
+      HTTP_STATUS.CONFLICT,
+      "Email already registered",
+      ERROR_CODES.EMAIL_ALREADY_EXISTS,
+    );
   }
 
   const hashed = await hashPassword(password);
@@ -70,22 +83,27 @@ export const register = async ({ name, email, password }, deviceInfo = {}) => {
  * and returns a token pair on success.
  * Always uses a generic error message to prevent email enumeration attacks.
  */
+
 export const login = async ({ email, password }, deviceInfo = {}) => {
   const user = await User.findOne({ email, deletedAt: null }).select(
-    '+password name email plan currency loginAttempts lockUntil lastLoginAt isActive'
+    "+password name email plan currency loginAttempts lockUntil lastLoginAt isActive",
   );
 
   // Generic message — never reveal whether the email exists
   if (!user) {
-    throw new ApiError(HTTP_STATUS.UNAUTHORIZED, 'Invalid email or password', ERROR_CODES.INVALID_CREDENTIALS);
+    throw new ApiError(
+      HTTP_STATUS.UNAUTHORIZED,
+      "Invalid email or password",
+      ERROR_CODES.INVALID_CREDENTIALS,
+    );
   }
 
   // Account lockout check
   if (user.lockUntil && user.lockUntil > Date.now()) {
     throw new ApiError(
       HTTP_STATUS.UNAUTHORIZED,
-      'Account is temporarily locked. Try again later',
-      ERROR_CODES.ACCOUNT_LOCKED
+      "Account is temporarily locked. Try again later",
+      ERROR_CODES.ACCOUNT_LOCKED,
     );
   }
 
@@ -97,7 +115,11 @@ export const login = async ({ email, password }, deviceInfo = {}) => {
       user.lockUntil = new Date(Date.now() + LOCKOUT_MS);
     }
     await user.save();
-    throw new ApiError(HTTP_STATUS.UNAUTHORIZED, 'Invalid email or password', ERROR_CODES.INVALID_CREDENTIALS);
+    throw new ApiError(
+      HTTP_STATUS.UNAUTHORIZED,
+      "Invalid email or password",
+      ERROR_CODES.INVALID_CREDENTIALS,
+    );
   }
 
   // Successful login — reset lockout counters
@@ -125,7 +147,7 @@ export const refreshToken = async (rawToken, deviceInfo = {}) => {
   try {
     decoded = verifyRefreshToken(rawToken);
   } catch {
-    throw ApiError.unauthorized('Invalid refresh token');
+    throw ApiError.unauthorized("Invalid refresh token");
   }
 
   const { userId, familyId } = decoded;
@@ -139,8 +161,8 @@ export const refreshToken = async (rawToken, deviceInfo = {}) => {
     await revokeFamily(familyId);
     throw new ApiError(
       HTTP_STATUS.UNAUTHORIZED,
-      'Refresh token reuse detected. All sessions have been revoked for your security.',
-      ERROR_CODES.REFRESH_TOKEN_REUSE_DETECTED
+      "Refresh token reuse detected. All sessions have been revoked for your security.",
+      ERROR_CODES.REFRESH_TOKEN_REUSE_DETECTED,
     );
   }
 
@@ -155,7 +177,7 @@ export const refreshToken = async (rawToken, deviceInfo = {}) => {
   }
 
   if (!matchedToken) {
-    throw ApiError.unauthorized('Invalid refresh token');
+    throw ApiError.unauthorized("Invalid refresh token");
   }
 
   // Revoke the consumed token
@@ -165,7 +187,12 @@ export const refreshToken = async (rawToken, deviceInfo = {}) => {
   // Issue a new token pair under a fresh familyId
   const newFamilyId = generateFamilyId();
   const tokens = generateTokenPair(userId, newFamilyId);
-  await persistRefreshToken(userId, tokens.refreshToken, newFamilyId, deviceInfo);
+  await persistRefreshToken(
+    userId,
+    tokens.refreshToken,
+    newFamilyId,
+    deviceInfo,
+  );
 
   return tokens;
 };
@@ -231,10 +258,10 @@ export const resetPassword = async (rawToken, newPassword) => {
   const user = await User.findOne({
     passwordResetToken: hashedToken,
     passwordResetExpires: { $gt: Date.now() },
-  }).select('+passwordResetToken +passwordResetExpires');
+  }).select("+passwordResetToken +passwordResetExpires");
 
   if (!user) {
-    throw ApiError.badRequest('Reset token is invalid or has expired');
+    throw ApiError.badRequest("Reset token is invalid or has expired");
   }
 
   user.password = await hashPassword(newPassword);
@@ -249,15 +276,18 @@ export const resetPassword = async (rawToken, newPassword) => {
  * Changes the password for an authenticated user after verifying the current
  * password. Revokes all refresh tokens to force re-login everywhere.
  */
-export const changePassword = async (userId, { currentPassword, newPassword }) => {
-  const user = await User.findById(userId).select('+password');
+export const changePassword = async (
+  userId,
+  { currentPassword, newPassword },
+) => {
+  const user = await User.findById(userId).select("+password");
   if (!user) {
-    throw ApiError.notFound('User not found');
+    throw ApiError.notFound("User not found");
   }
 
   const valid = await comparePassword(currentPassword, user.password);
   if (!valid) {
-    throw ApiError.unauthorized('Current password is incorrect');
+    throw ApiError.unauthorized("Current password is incorrect");
   }
 
   user.password = await hashPassword(newPassword);

@@ -1,10 +1,10 @@
-import { catchAsync } from '../../shared/catchAsync.js';
-import * as ApiResponse from '../../shared/ApiResponse.js';
-import * as authService from './auth.service.js';
+import { catchAsync } from "../../shared/catchAsync.js";
+import * as ApiResponse from "../../shared/ApiResponse.js";
+import * as authService from "./auth.service.js";
 
 /** Extracts device info from the request for refresh token storage. */
 const deviceInfo = (req) => ({
-  userAgent: req.headers['user-agent'],
+  userAgent: req.headers["user-agent"],
   ip: req.ip,
 });
 
@@ -14,7 +14,10 @@ const deviceInfo = (req) => ({
  */
 export const register = catchAsync(async (req, res) => {
   const result = await authService.register(req.body, deviceInfo(req));
-  return ApiResponse.created(res, { data: result, message: 'Account created successfully' });
+  return ApiResponse.created(res, {
+    data: result,
+    message: "Account created successfully",
+  });
 });
 
 /**
@@ -24,7 +27,10 @@ export const register = catchAsync(async (req, res) => {
 export const login = catchAsync(async (req, res) => {
   const { email, password } = req.body;
   const result = await authService.login({ email, password }, deviceInfo(req));
-  return ApiResponse.success(res, { data: result, message: 'Login successful' });
+  return ApiResponse.success(res, {
+    data: result,
+    message: "Login successful",
+  });
 });
 
 /**
@@ -32,8 +38,14 @@ export const login = catchAsync(async (req, res) => {
  * Rotates a refresh token and returns a new token pair.
  */
 export const refreshToken = catchAsync(async (req, res) => {
-  const tokens = await authService.refreshToken(req.body.refreshToken, deviceInfo(req));
-  return ApiResponse.success(res, { data: tokens, message: 'Tokens refreshed' });
+  const tokens = await authService.refreshToken(
+    req.body.refreshToken,
+    deviceInfo(req),
+  );
+  return ApiResponse.success(res, {
+    data: tokens,
+    message: "Tokens refreshed",
+  });
 });
 
 /**
@@ -42,7 +54,10 @@ export const refreshToken = catchAsync(async (req, res) => {
  */
 export const logout = catchAsync(async (req, res) => {
   await authService.logout(req.user._id, req.body?.refreshToken);
-  return ApiResponse.success(res, { data: null, message: 'Logged out successfully' });
+  return ApiResponse.success(res, {
+    data: null,
+    message: "Logged out successfully",
+  });
 });
 
 /**
@@ -54,7 +69,7 @@ export const forgotPassword = catchAsync(async (req, res) => {
   await authService.forgotPassword(req.body.email);
   return ApiResponse.success(res, {
     data: null,
-    message: 'If that email is registered, a reset link has been sent',
+    message: "If that email is registered, a reset link has been sent",
   });
 });
 
@@ -65,7 +80,10 @@ export const forgotPassword = catchAsync(async (req, res) => {
 export const resetPassword = catchAsync(async (req, res) => {
   const { token, password } = req.body;
   await authService.resetPassword(token, password);
-  return ApiResponse.success(res, { data: null, message: 'Password reset successfully' });
+  return ApiResponse.success(res, {
+    data: null,
+    message: "Password reset successfully",
+  });
 });
 
 /**
@@ -74,6 +92,12 @@ export const resetPassword = catchAsync(async (req, res) => {
  */
 export const changePassword = catchAsync(async (req, res) => {
   const { currentPassword, newPassword } = req.body;
-  await authService.changePassword(req.user._id, { currentPassword, newPassword });
-  return ApiResponse.success(res, { data: null, message: 'Password changed successfully' });
+  await authService.changePassword(req.user._id, {
+    currentPassword,
+    newPassword,
+  });
+  return ApiResponse.success(res, {
+    data: null,
+    message: "Password changed successfully",
+  });
 });
