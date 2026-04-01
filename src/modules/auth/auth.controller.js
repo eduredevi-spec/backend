@@ -13,6 +13,8 @@ const deviceInfo = (req) => ({
  * Creates a new user and returns the user object with a token pair.
  */
 export const register = catchAsync(async (req, res) => {
+  console.log("d");
+
   const result = await authService.register(req.body, deviceInfo(req));
   return ApiResponse.created(res, {
     data: result,

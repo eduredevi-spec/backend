@@ -59,6 +59,8 @@ const revokeFamily = async (familyId) => {
  * refresh token. Returns the sanitised user object and both tokens.
  */
 export const register = async ({ name, email, password }, deviceInfo = {}) => {
+  console.log("ser");
+
   const existing = await User.findOne({ email });
   if (existing) {
     throw new ApiError(
