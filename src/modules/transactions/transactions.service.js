@@ -3,6 +3,7 @@ import { Transaction } from '../../models/Transaction.js';
 import { Account } from '../../models/Account.js';
 import { Category } from '../../models/Category.js';
 import { AuditLog } from '../../models/AuditLog.js';
+import { adjustAccountBalance } from '../accounts/accounts.service.js';
 import { ApiError } from '../../shared/ApiError.js';
 
 // ─── Decimal128 helpers ───────────────────────────────────────────────────────
@@ -47,40 +48,17 @@ const decodeCursor = (cursor) => {
  * All DB operations run inside the provided Mongoose session.
  */
 const adjustBalances = async (tx, direction, session) => {
-  const amount = parseFloat(tx.amount.toString());
+  const amount = parseFloat(tx.amount.toString()) * direction;
 
   if (tx.type === 'income') {
-    const account = await Account.findById(tx.accountId).session(session);
-    if (!account) throw ApiError.notFound('Account not found');
-    account.balance = direction === 1
-      ? addD128(account.balance, amount)
-      : subD128(account.balance, amount);
-    await account.save({ session });
+    await adjustAccountBalance(tx.userId, tx.accountId, amount, session);
 
   } else if (tx.type === 'expense') {
-    const account = await Account.findById(tx.accountId).session(session);
-    if (!account) throw ApiError.notFound('Account not found');
-    account.balance = direction === 1
-      ? subD128(account.balance, amount)
-      : addD128(account.balance, amount);
-    await account.save({ session });
+    await adjustAccountBalance(tx.userId, tx.accountId, -amount, session);
 
   } else if (tx.type === 'transfer') {
-    const [from, to] = await Promise.all([
-      Account.findById(tx.accountId).session(session),
-      Account.findById(tx.toAccountId).session(session),
-    ]);
-    if (!from || !to) throw ApiError.notFound('Account not found');
-
-    if (direction === 1) {
-      from.balance = subD128(from.balance, amount);
-      to.balance = addD128(to.balance, amount);
-    } else {
-      from.balance = addD128(from.balance, amount);
-      to.balance = subD128(to.balance, amount);
-    }
-    await from.save({ session });
-    await to.save({ session });
+    await adjustAccountBalance(tx.userId, tx.accountId, -amount, session);
+    await adjustAccountBalance(tx.userId, tx.toAccountId, amount, session);
   }
 };
 
