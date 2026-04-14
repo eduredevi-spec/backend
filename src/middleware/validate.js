@@ -13,6 +13,7 @@ import { HTTP_STATUS } from "../constants/index.js";
  */
 export const validate = (schema) => (req, _res, next) => {
   const allErrors = [];
+  const sanitized = {};
 
   for (const key of ["body", "params", "query"]) {
     if (!schema[key]) continue;
@@ -30,7 +31,7 @@ export const validate = (schema) => (req, _res, next) => {
       }));
       allErrors.push(...details);
     } else {
-      req[key] = value;
+      sanitized[key] = value;
     }
   }
 
@@ -43,6 +44,21 @@ export const validate = (schema) => (req, _res, next) => {
         allErrors,
       ),
     );
+  }
+
+  if (sanitized.body) {
+    req.body = sanitized.body;
+  }
+  if (sanitized.params) {
+    req.params = sanitized.params;
+  }
+  if (sanitized.query) {
+    Object.defineProperty(req, "validatedQuery", {
+      value: sanitized.query,
+      configurable: true,
+      enumerable: false,
+      writable: false,
+    });
   }
 
   next();

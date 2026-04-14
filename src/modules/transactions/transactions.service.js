@@ -1,10 +1,10 @@
 import mongoose from 'mongoose';
 import { Transaction } from '../../models/Transaction.js';
 import { Account } from '../../models/Account.js';
-import { Category } from '../../models/Category.js';
 import { AuditLog } from '../../models/AuditLog.js';
 import { adjustAccountBalance } from '../accounts/accounts.service.js';
 import { ApiError } from '../../shared/ApiError.js';
+import { TRANSACTION_CATEGORY_KEYS } from '../../constants/categories.js';
 
 // ─── Decimal128 helpers ───────────────────────────────────────────────────────
 
@@ -75,16 +75,11 @@ const validateAccount = async (accountId, userId) => {
  * Verifies the category exists and is accessible (owned by user or system),
  * and that its type matches the transaction type.
  */
-const validateCategory = async (categoryId, userId, txType) => {
-  const category = await Category.findOne({
-    _id: categoryId,
-    $or: [{ userId }, { isSystem: true }],
-    isHidden: false,
-  });
-  if (!category) throw ApiError.notFound(`Category not found or not accessible`);
-  if (category.type !== txType) {
+const validateCategory = async (categoryId, txType) => {
+  const allowed = TRANSACTION_CATEGORY_KEYS[txType] ?? [];
+  if (!allowed.includes(categoryId)) {
     throw ApiError.badRequest(
-      `Category type "${category.type}" does not match transaction type "${txType}"`
+      `Category "${categoryId}" does not match transaction type "${txType}"`
     );
   }
 };
@@ -102,7 +97,6 @@ const writeAuditLog = (userId, action, entityId, changes, session) =>
 const POPULATE = [
   { path: 'accountId',   select: 'name type currency' },
   { path: 'toAccountId', select: 'name type currency' },
-  { path: 'categoryId',  select: 'name icon color type' },
 ];
 
 // ─── Public service functions ─────────────────────────────────────────────────
@@ -132,7 +126,7 @@ export const createTransaction = async (userId, data) => {
     await validateAccount(toAccountId, userId);
   }
   if (type !== 'transfer' && categoryId) {
-    await validateCategory(categoryId, userId, type);
+    await validateCategory(categoryId, type);
   }
 
   let tx;
@@ -267,7 +261,7 @@ export const updateTransaction = async (userId, transactionId, data) => {
     await validateAccount(resolvedToId, userId);
   }
   if (newType !== 'transfer' && newCatId) {
-    await validateCategory(newCatId, userId, newType);
+    await validateCategory(newCatId, newType);
   }
 
   const before = existing.toObject();

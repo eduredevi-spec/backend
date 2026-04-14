@@ -16,7 +16,10 @@ export const create = catchAsync(async (req, res) => {
  * Returns a list of the user's accounts with optional filtering.
  */
 export const list = catchAsync(async (req, res) => {
-  const accounts = await accountsService.listAccounts(req.user._id, req.query);
+  const accounts = await accountsService.listAccounts(
+    req.user._id,
+    req.validatedQuery ?? req.query
+  );
   return ApiResponse.success(res, { data: accounts });
 });
 

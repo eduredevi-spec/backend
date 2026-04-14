@@ -16,7 +16,10 @@ export const create = catchAsync(async (req, res) => {
  * Returns a cursor-paginated, filterable list of the user's transactions.
  */
 export const list = catchAsync(async (req, res) => {
-  const result = await transactionsService.listTransactions(req.user._id, req.query);
+  const result = await transactionsService.listTransactions(
+    req.user._id,
+    req.validatedQuery ?? req.query
+  );
   return ApiResponse.success(res, { data: result.data, meta: result.meta });
 });
 

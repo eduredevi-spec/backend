@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import { toJSONPlugin } from "./plugins/toJSON.js";
+import { ALL_TRANSACTION_CATEGORY_KEYS } from "../constants/categories.js";
 
 /**
  * The core financial event model. Records income, expenses, and account
@@ -31,8 +32,8 @@ const transactionSchema = new mongoose.Schema(
       default: null,
     },
     categoryId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Category",
+      type: String,
+      enum: ALL_TRANSACTION_CATEGORY_KEYS,
       default: null,
     },
     date: { type: Date, required: true, default: Date.now },
