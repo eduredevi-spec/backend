@@ -13,12 +13,10 @@ const deviceInfo = (req) => ({
  * Creates a new user and returns the user object with a token pair.
  */
 export const register = catchAsync(async (req, res) => {
-  console.log("d");
-
-  const result = await authService.register(req.body, deviceInfo(req));
+  const result = await authService.register(req.body);
   return ApiResponse.created(res, {
     data: result,
-    message: "Account created successfully",
+    message: "Account created. Verification OTP sent to email",
   });
 });
 
@@ -32,6 +30,30 @@ export const login = catchAsync(async (req, res) => {
   return ApiResponse.success(res, {
     data: result,
     message: "Login successful",
+  });
+});
+
+/**
+ * POST /verify-email-otp
+ * Verifies user's email using OTP code sent over email.
+ */
+export const verifyEmailOtp = catchAsync(async (req, res) => {
+  const result = await authService.verifyEmailOtp(req.body, deviceInfo(req));
+  return ApiResponse.success(res, {
+    data: result,
+    message: "Email verified successfully",
+  });
+});
+
+/**
+ * POST /resend-email-otp
+ * Sends a fresh verification OTP email.
+ */
+export const resendEmailOtp = catchAsync(async (req, res) => {
+  await authService.resendEmailVerificationOtp(req.body);
+  return ApiResponse.success(res, {
+    data: null,
+    message: "If the email is registered, a verification OTP has been sent",
   });
 });
 

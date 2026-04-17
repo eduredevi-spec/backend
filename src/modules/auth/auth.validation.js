@@ -63,8 +63,15 @@ export const changePassword = {
     }),
 };
 
-export const verifyEmail = {
+export const verifyEmailOtp = {
   body: Joi.object({
-    token: Joi.string().required(),
+    email: Joi.string().email().lowercase().trim().required(),
+    otp: Joi.string().trim().pattern(/^\d{4,8}$/).required(),
+  }),
+};
+
+export const resendEmailOtp = {
+  body: Joi.object({
+    email: Joi.string().email().lowercase().trim().required(),
   }),
 };

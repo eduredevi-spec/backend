@@ -30,6 +30,21 @@ const config = {
   bcrypt: {
     saltRounds: 12,
   },
+  auth: {
+    emailOtpLength: parseInt(process.env.EMAIL_OTP_LENGTH || "6", 10),
+    emailOtpExpiresMinutes: parseInt(
+      process.env.EMAIL_OTP_EXPIRES_MINUTES || "10",
+      10,
+    ),
+    emailOtpMaxAttempts: parseInt(
+      process.env.EMAIL_OTP_MAX_ATTEMPTS || "5",
+      10,
+    ),
+    emailOtpResendCooldownSeconds: parseInt(
+      process.env.EMAIL_OTP_RESEND_COOLDOWN_SECONDS || "60",
+      10,
+    ),
+  },
 };
 
 export default config;

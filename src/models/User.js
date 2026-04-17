@@ -48,6 +48,10 @@ const userSchema = new mongoose.Schema(
 
     passwordResetToken: { type: String, default: null, select: false },
     passwordResetExpires: { type: Date, default: null },
+    emailVerificationOtpHash: { type: String, default: null, select: false },
+    emailVerificationOtpExpires: { type: Date, default: null, select: false },
+    emailVerificationOtpAttempts: { type: Number, default: 0, select: false },
+    emailVerificationOtpLastSentAt: { type: Date, default: null, select: false },
 
     // kept for auth module compatibility
     role: { type: String, enum: ["user", "admin"], default: "user" },

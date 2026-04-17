@@ -12,6 +12,13 @@ const toD128 = (value) =>
  * Creates a new account for the user.
  */
 export const createAccount = async (userId, accountData) => {
+  const { idempotencyKey } = accountData;
+
+  if (idempotencyKey) {
+    const existing = await Account.findOne({ userId, idempotencyKey });
+    if (existing) return existing;
+  }
+
   const account = await Account.create({
     ...accountData,
     userId,

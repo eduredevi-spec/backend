@@ -23,6 +23,7 @@ const accountSchema = new mongoose.Schema(
     isArchived: { type: Boolean, default: false },
     sortOrder: { type: Number, default: 0 },
     note: { type: String, maxlength: 200 },
+    idempotencyKey: { type: String, default: null, index: true },
   },
   { timestamps: true }
 );

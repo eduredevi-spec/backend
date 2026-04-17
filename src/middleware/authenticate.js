@@ -2,6 +2,7 @@ import { verifyAccessToken } from "../utils/token.js";
 import { User } from "../models/User.js";
 import { ApiError } from "../shared/ApiError.js";
 import { ERROR_CODES } from "../constants/index.js";
+import { HTTP_STATUS } from "../constants/httpStatus.js";
 import { catchAsync } from "../shared/catchAsync.js";
 
 /**
@@ -40,6 +41,13 @@ export const authenticate = catchAsync(async (req, _res, next) => {
 
   if (!user || !user.isActive) {
     throw ApiError.unauthorized("User not found or account disabled");
+  }
+  if (!user.isEmailVerified) {
+    throw new ApiError(
+      HTTP_STATUS.FORBIDDEN,
+      "Email not verified. Please verify your email with OTP",
+      ERROR_CODES.ACCOUNT_NOT_VERIFIED,
+    );
   }
 
   req.user = user;
