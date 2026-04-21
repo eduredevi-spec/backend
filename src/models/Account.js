@@ -24,6 +24,14 @@ const accountSchema = new mongoose.Schema(
     sortOrder: { type: Number, default: 0 },
     note: { type: String, maxlength: 200 },
     idempotencyKey: { type: String, default: null, index: true },
+    
+    // Detailed bank / credit info
+    accountNumber: { type: String, trim: true },
+    ifscCode: { type: String, trim: true },
+    branch: { type: String, trim: true },
+    accountHolderName: { type: String, trim: true },
+    creditLimit: { type: mongoose.Schema.Types.Decimal128, default: 0 },
+    creditDueDate: { type: Number, min: 1, max: 31 },
   },
   { timestamps: true }
 );

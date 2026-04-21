@@ -14,6 +14,14 @@ export const create = {
     icon: Joi.string().default('wallet'),
     includeInTotal: Joi.boolean().default(true),
     note: Joi.string().max(200).optional().allow(''),
+    
+    // New fields
+    accountNumber: Joi.string().trim().optional().allow(''),
+    ifscCode: Joi.string().trim().optional().allow(''),
+    branch: Joi.string().trim().optional().allow(''),
+    accountHolderName: Joi.string().trim().optional().allow(''),
+    creditLimit: Joi.number().optional().default(0),
+    creditDueDate: Joi.number().integer().min(1).max(31).optional(),
   }),
 };
 
@@ -30,6 +38,14 @@ export const update = {
     isArchived: Joi.boolean().optional(),
     sortOrder: Joi.number().optional(),
     note: Joi.string().max(200).optional().allow(''),
+    
+    // New fields
+    accountNumber: Joi.string().trim().optional().allow(''),
+    ifscCode: Joi.string().trim().optional().allow(''),
+    branch: Joi.string().trim().optional().allow(''),
+    accountHolderName: Joi.string().trim().optional().allow(''),
+    creditLimit: Joi.number().optional(),
+    creditDueDate: Joi.number().integer().min(1).max(31).optional(),
   }).min(1),
 };
 

@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import { Transaction } from '../../models/Transaction.js';
 import { Account } from '../../models/Account.js';
+import { Category } from '../../models/Category.js';
 import { AuditLog } from '../../models/AuditLog.js';
 import { adjustAccountBalance } from '../accounts/accounts.service.js';
 import { ApiError } from '../../shared/ApiError.js';
@@ -77,11 +78,18 @@ const validateAccount = async (accountId, userId) => {
  */
 const validateCategory = async (categoryId, txType) => {
   const allowed = TRANSACTION_CATEGORY_KEYS[txType] ?? [];
-  if (!allowed.includes(categoryId)) {
-    throw ApiError.badRequest(
-      `Category "${categoryId}" does not match transaction type "${txType}"`
-    );
+  if (allowed.includes(categoryId)) return;
+
+  if (mongoose.Types.ObjectId.isValid(categoryId)) {
+    const category = await Category.findById(categoryId);
+    if (category && category.type === txType) {
+      return;
+    }
   }
+
+  throw ApiError.badRequest(
+    `Category "${categoryId}" does not match transaction type "${txType}"`
+  );
 };
 
 // ─── Audit log helper ─────────────────────────────────────────────────────────

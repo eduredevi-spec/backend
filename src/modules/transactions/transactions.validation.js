@@ -1,18 +1,13 @@
 import Joi from 'joi';
-import { ALL_TRANSACTION_CATEGORY_KEYS, TRANSACTION_CATEGORY_KEYS } from '../../constants/categories.js';
+import { TRANSACTION_CATEGORY_KEYS } from '../../constants/categories.js';
 
 const objectId = Joi.string()
   .pattern(/^[0-9a-fA-F]{24}$/)
   .messages({ 'string.pattern.base': 'Invalid ID format' });
 
-const categoryKey = Joi.string().valid(...ALL_TRANSACTION_CATEGORY_KEYS);
-
 const categoryMatchesType = (value, helpers) => {
-  if (value.type !== 'transfer' && value.categoryId) {
-    const allowed = TRANSACTION_CATEGORY_KEYS[value.type] ?? [];
-    if (!allowed.includes(value.categoryId)) {
-      return helpers.message(`categoryId must match transaction type ${value.type}`);
-    }
+  if (value.type === 'transfer' && value.categoryId) {
+    return helpers.message('categoryId is not allowed for transfer transactions');
   }
   return value;
 };
@@ -27,7 +22,7 @@ export const create = {
       then: objectId.required().messages({ 'any.required': 'toAccountId is required for transfers' }),
       otherwise: objectId.optional().allow(null, ''),
     }),
-    categoryId: categoryKey.optional().allow(null, ''),
+    categoryId: Joi.string().optional().allow(null, ''),
     date: Joi.date().iso().optional(),
     payee: Joi.string().trim().max(100).optional().allow(''),
     note: Joi.string().max(500).optional().allow(''),
@@ -45,7 +40,7 @@ export const update = {
     amount: Joi.number().positive().optional(),
     accountId: objectId.optional(),
     toAccountId: objectId.optional().allow(null, ''),
-    categoryId: categoryKey.optional().allow(null, ''),
+    categoryId: Joi.string().optional().allow(null, ''),
     date: Joi.date().iso().optional(),
     payee: Joi.string().trim().max(100).optional().allow(''),
     note: Joi.string().max(500).optional().allow(''),
@@ -69,7 +64,7 @@ export const list = {
     limit: Joi.number().integer().min(1).max(100).default(20),
     type: Joi.string().valid('income', 'expense', 'transfer').optional(),
     accountId: objectId.optional(),
-    categoryId: categoryKey.optional(),
+    categoryId: Joi.string().optional(),
     dateFrom: Joi.date().iso().optional(),
     dateTo: Joi.date().iso().optional(),
     tags: Joi.alternatives()

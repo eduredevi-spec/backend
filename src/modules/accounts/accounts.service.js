@@ -23,6 +23,7 @@ export const createAccount = async (userId, accountData) => {
     ...accountData,
     userId,
     balance: toD128(accountData.balance || 0),
+    creditLimit: toD128(accountData.creditLimit || 0),
   });
   return account;
 };
@@ -74,6 +75,9 @@ export const updateAccount = async (userId, accountId, updateData) => {
   // Convert balance to Decimal128 if provided
   if (updateData.balance !== undefined) {
     updateData.balance = toD128(updateData.balance);
+  }
+  if (updateData.creditLimit !== undefined) {
+    updateData.creditLimit = toD128(updateData.creditLimit);
   }
 
   const account = await Account.findOneAndUpdate(

@@ -1,7 +1,5 @@
 import mongoose from "mongoose";
 import { toJSONPlugin } from "./plugins/toJSON.js";
-import { ALL_TRANSACTION_CATEGORY_KEYS } from "../constants/categories.js";
-
 /**
  * The core financial event model. Records income, expenses, and account
  * transfers. Uses Decimal128 for amount. Soft-deleted via deletedAt.
@@ -33,7 +31,6 @@ const transactionSchema = new mongoose.Schema(
     },
     categoryId: {
       type: String,
-      enum: ALL_TRANSACTION_CATEGORY_KEYS,
       default: null,
     },
     date: { type: Date, required: true, default: Date.now },

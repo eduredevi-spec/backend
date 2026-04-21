@@ -8,8 +8,16 @@ export const TRANSACTION_CATEGORY_KEYS = {
     'entertainment',
     'education',
     'subscriptions',
+    'housing',
+    'gifts',
+    'other_exp',
   ],
-  income: ['income'],
+  income: [
+    'salary',
+    'bonus',
+    'investment_inc',
+    'other_inc',
+  ],
   transfer: ['transfer'],
 };
 
