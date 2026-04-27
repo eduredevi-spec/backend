@@ -1,4 +1,5 @@
 import authRouter from "../modules/auth/auth.routes.js";
+import usersRouter from "../modules/users/users.routes.js";
 import transactionsRouter from "../modules/transactions/transactions.routes.js";
 import accountsRouter from "../modules/accounts/accounts.routes.js";
 import budgetsRouter from "../modules/budgets/budgets.routes.js";
@@ -20,6 +21,7 @@ export const loadRoutes = (app) => {
   });
 
   app.use("/api/v1/auth", authRouter);
+  app.use("/api/v1/users", usersRouter);
 
   app.use("/api/v1/transactions", authenticate, transactionsRouter);
   app.use("/api/v1/accounts", authenticate, accountsRouter);
