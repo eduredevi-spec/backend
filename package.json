@@ -5,10 +5,10 @@
   "license": "ISC",
   "author": "suhail",
   "type": "module",
-  "main": "index.js",
+  "main": "src/server.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node --env-file=.env src/server.js",
+    "start": "node src/server.js",
     "dev": "nodemon --env-file=.env src/server.js"
   },
   "dependencies": {
