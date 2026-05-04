@@ -1,7 +1,6 @@
 import { randomInt } from "crypto";
 import config from "../../config/index.js";
-import { User } from "../../models/User.js";
-import { RefreshToken } from "../../models/RefreshToken.js";
+import { User, RefreshToken, PendingUser } from "../../models/index.js";
 import {
   sendEmailVerificationOtp,
   sendPasswordResetOtp,
@@ -50,10 +49,12 @@ const generateNumericOtp = (length) =>
 const issueEmailVerificationOtp = async (user, { enforceCooldown = true } = {}) => {
   const now = Date.now();
 
+  const lastSentAt = user.emailVerificationOtpLastSentAt || user.lastSentAt;
+
   if (
     enforceCooldown &&
-    user.emailVerificationOtpLastSentAt &&
-    now - user.emailVerificationOtpLastSentAt.getTime() < EMAIL_OTP_RESEND_COOLDOWN_MS
+    lastSentAt &&
+    now - lastSentAt.getTime() < EMAIL_OTP_RESEND_COOLDOWN_MS
   ) {
     throw new ApiError(
       HTTP_STATUS.TOO_MANY_REQUESTS,
@@ -63,10 +64,22 @@ const issueEmailVerificationOtp = async (user, { enforceCooldown = true } = {}) 
   }
 
   const otp = generateNumericOtp(EMAIL_OTP_LENGTH);
-  user.emailVerificationOtpHash = sha256Hash(otp);
-  user.emailVerificationOtpExpires = new Date(now + EMAIL_OTP_EXPIRES_MS);
-  user.emailVerificationOtpAttempts = 0;
-  user.emailVerificationOtpLastSentAt = new Date(now);
+  const otpHash = sha256Hash(otp);
+  const otpExpires = new Date(now + EMAIL_OTP_EXPIRES_MS);
+
+  if (user instanceof User) {
+    user.emailVerificationOtpHash = otpHash;
+    user.emailVerificationOtpExpires = otpExpires;
+    user.emailVerificationOtpAttempts = 0;
+    user.emailVerificationOtpLastSentAt = new Date(now);
+  } else {
+    // PendingUser
+    user.otpHash = otpHash;
+    user.otpExpires = otpExpires;
+    user.attempts = 0;
+    user.lastSentAt = new Date(now);
+  }
+  
   await user.save();
 
   await sendEmailVerificationOtp({
@@ -103,7 +116,7 @@ const revokeFamily = async (familyId) => {
 };
 
 /**
- * Creates a new user account and sends a verification OTP to email.
+ * Starts registration by creating a PendingUser. Account is only created after OTP verification.
  */
 export const register = async ({ name, email, password }) => {
   const existing = await User.findOne({ email });
@@ -115,12 +128,30 @@ export const register = async ({ name, email, password }) => {
     );
   }
 
+  // Check if there is already a pending registration for this email
+  await PendingUser.deleteOne({ email });
+
   const hashed = await hashPassword(password);
-  const user = await User.create({ name, email, password: hashed });
-  await issueEmailVerificationOtp(user, { enforceCooldown: false });
+  const otp = generateNumericOtp(EMAIL_OTP_LENGTH);
+  const now = Date.now();
+
+  const pendingUser = await PendingUser.create({
+    name,
+    email,
+    password: hashed,
+    otpHash: sha256Hash(otp),
+    otpExpires: new Date(now + EMAIL_OTP_EXPIRES_MS),
+    lastSentAt: new Date(now),
+  });
+
+  await sendEmailVerificationOtp({
+    to: email,
+    name,
+    otp,
+  });
 
   return {
-    user: sanitizeUser(user),
+    user: { name, email },
     verificationRequired: true,
   };
 };
@@ -202,9 +233,72 @@ export const login = async ({ email, password }, deviceInfo = {}) => {
 };
 
 /**
- * Verifies email using OTP and marks user email as verified.
+ * Verifies email using OTP. For new registrations, creates the final User account.
  */
 export const verifyEmailOtp = async ({ email, otp }, deviceInfo = {}) => {
+  // First check if it's a new registration (PendingUser)
+  const pendingUser = await PendingUser.findOne({ email });
+  
+  if (pendingUser) {
+    if (pendingUser.otpExpires.getTime() <= Date.now()) {
+      throw new ApiError(
+        HTTP_STATUS.BAD_REQUEST,
+        "OTP has expired. Please request a new one",
+        ERROR_CODES.EMAIL_OTP_EXPIRED,
+      );
+    }
+
+    if (pendingUser.attempts >= EMAIL_OTP_MAX_ATTEMPTS) {
+      throw new ApiError(
+        HTTP_STATUS.TOO_MANY_REQUESTS,
+        "Maximum OTP attempts exceeded. Please request a new OTP",
+        ERROR_CODES.EMAIL_OTP_ATTEMPTS_EXCEEDED,
+      );
+    }
+
+    const otpHash = sha256Hash(otp);
+    if (otpHash !== pendingUser.otpHash) {
+      pendingUser.attempts += 1;
+      await pendingUser.save();
+      
+      if (pendingUser.attempts >= EMAIL_OTP_MAX_ATTEMPTS) {
+        throw new ApiError(
+          HTTP_STATUS.TOO_MANY_REQUESTS,
+          "Maximum OTP attempts exceeded. Please request a new OTP",
+          ERROR_CODES.EMAIL_OTP_ATTEMPTS_EXCEEDED,
+        );
+      }
+
+      throw new ApiError(
+        HTTP_STATUS.BAD_REQUEST,
+        "Invalid OTP",
+        ERROR_CODES.EMAIL_OTP_INVALID,
+      );
+    }
+
+    // OTP is valid! Create the real User.
+    const user = await User.create({
+      name: pendingUser.name,
+      email: pendingUser.email,
+      password: pendingUser.password,
+      isEmailVerified: true,
+    });
+
+    await PendingUser.deleteOne({ _id: pendingUser._id });
+
+    const familyId = generateFamilyId();
+    const { accessToken, refreshToken } = generateTokenPair(user._id, familyId);
+    await persistRefreshToken(user._id, refreshToken, familyId, deviceInfo);
+
+    return { 
+      user: sanitizeUser(user), 
+      accessToken, 
+      refreshToken, 
+      alreadyVerified: false 
+    };
+  }
+
+  // If not in PendingUser, check the main User collection (for existing users resending OTP)
   const user = await User.findOne({ email, deletedAt: null }).select(
     "name email plan currency isEmailVerified +emailVerificationOtpHash +emailVerificationOtpExpires +emailVerificationOtpAttempts +emailVerificationOtpLastSentAt",
   );
@@ -293,6 +387,13 @@ export const verifyEmailOtp = async ({ email, otp }, deviceInfo = {}) => {
  * Sends a fresh email verification OTP with resend cooldown.
  */
 export const resendEmailVerificationOtp = async ({ email }) => {
+  // Check PendingUser first
+  const pendingUser = await PendingUser.findOne({ email });
+  if (pendingUser) {
+    await issueEmailVerificationOtp(pendingUser, { enforceCooldown: true });
+    return;
+  }
+
   const user = await User.findOne({ email, deletedAt: null }).select(
     "name email isEmailVerified +emailVerificationOtpLastSentAt +emailVerificationOtpHash +emailVerificationOtpExpires +emailVerificationOtpAttempts",
   );
@@ -302,152 +403,4 @@ export const resendEmailVerificationOtp = async ({ email }) => {
   }
 
   await issueEmailVerificationOtp(user, { enforceCooldown: true });
-};
-
-/**
- * Implements refresh token rotation with reuse detection.
- */
-export const refreshToken = async (rawToken, deviceInfo = {}) => {
-  let decoded;
-  try {
-    decoded = verifyRefreshToken(rawToken);
-  } catch {
-    throw ApiError.unauthorized("Invalid refresh token");
-  }
-
-  const { userId, familyId } = decoded;
-
-  const familyTokens = await RefreshToken.find({ familyId, isRevoked: false });
-
-  if (familyTokens.length === 0) {
-    await revokeFamily(familyId);
-    throw new ApiError(
-      HTTP_STATUS.UNAUTHORIZED,
-      "Refresh token reuse detected. All sessions have been revoked for your security.",
-      ERROR_CODES.REFRESH_TOKEN_REUSE_DETECTED,
-    );
-  }
-
-  let matchedToken = null;
-  for (const t of familyTokens) {
-    const match = await comparePassword(rawToken, t.tokenHash);
-    if (match) {
-      matchedToken = t;
-      break;
-    }
-  }
-
-  if (!matchedToken) {
-    throw ApiError.unauthorized("Invalid refresh token");
-  }
-
-  matchedToken.isRevoked = true;
-  await matchedToken.save();
-
-  const newFamilyId = generateFamilyId();
-  const tokens = generateTokenPair(userId, newFamilyId);
-  await persistRefreshToken(
-    userId,
-    tokens.refreshToken,
-    newFamilyId,
-    deviceInfo,
-  );
-
-  return tokens;
-};
-
-/**
- * Logs out a user. If a specific refresh token is provided, only that token
- * is revoked. Otherwise, all refresh tokens for the user are revoked.
- */
-export const logout = async (userId, rawRefreshToken) => {
-  if (rawRefreshToken) {
-    try {
-      const decoded = verifyRefreshToken(rawRefreshToken);
-      const familyTokens = await RefreshToken.find({
-        familyId: decoded.familyId,
-        isRevoked: false,
-      });
-      for (const t of familyTokens) {
-        const match = await comparePassword(rawRefreshToken, t.tokenHash);
-        if (match) {
-          t.isRevoked = true;
-          await t.save();
-          break;
-        }
-      }
-    } catch {
-      // Token is expired or malformed; nothing to revoke.
-    }
-  } else {
-    await RefreshToken.updateMany({ userId }, { isRevoked: true });
-  }
-};
-
-/**
- * Generates a password reset OTP, hashes it with SHA-256, and saves it.
- * Always returns success to prevent email enumeration.
- */
-export const forgotPassword = async (email) => {
-  const user = await User.findOne({ email, deletedAt: null });
-
-  if (!user) {
-    return;
-  }
-
-  const otp = generateNumericOtp(EMAIL_OTP_LENGTH);
-  user.passwordResetToken = sha256Hash(otp);
-  user.passwordResetExpires = new Date(Date.now() + PASSWORD_RESET_EXPIRES_MS);
-  await user.save();
-
-  await sendPasswordResetOtp({
-    to: user.email,
-    otp,
-  });
-};
-
-/**
- * Validates the reset OTP, updates password, and revokes all refresh tokens.
- */
-export const resetPassword = async (otp, newPassword) => {
-  const hashedOtp = sha256Hash(otp);
-
-  const user = await User.findOne({
-    passwordResetToken: hashedOtp,
-    passwordResetExpires: { $gt: Date.now() },
-  }).select("+passwordResetToken +passwordResetExpires");
-
-  if (!user) {
-    throw ApiError.badRequest("Reset OTP is invalid or has expired");
-  }
-
-  user.password = await hashPassword(newPassword);
-  user.passwordResetToken = null;
-  user.passwordResetExpires = null;
-  await user.save();
-
-  await RefreshToken.updateMany({ userId: user._id }, { isRevoked: true });
-};
-
-/**
- * Changes the password for an authenticated user after verifying current password.
- */
-export const changePassword = async (
-  userId,
-  { currentPassword, newPassword },
-) => {
-  const user = await User.findById(userId).select("+password");
-  if (!user) {
-    throw ApiError.notFound("User not found");
-  }
-
-  const valid = await comparePassword(currentPassword, user.password);
-  if (!valid) {
-    throw ApiError.unauthorized("Current password is incorrect");
-  }
-
-  user.password = await hashPassword(newPassword);
-  await user.save();
-
-  await RefreshToken.updateMany({ userId }, { isRevoked: true });
 };

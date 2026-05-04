@@ -7,14 +7,13 @@ const isProd = config.nodeEnv === "production";
 const transporter = nodemailer.createTransport({
   host: config.email.host,
   port: config.email.port,
-  secure: config.email.port === 465, // true for 465, false for other ports
+  secure: config.email.port === 465,
   auth: {
     user: config.email.user,
     pass: config.email.pass,
   },
 });
 
-// Verify SMTP connection on startup
 transporter.verify((error) => {
   if (error) {
     logger.error("SMTP connection error:", error);
@@ -23,27 +22,75 @@ transporter.verify((error) => {
   }
 });
 
+// Brand configuration
+const brand = {
+  name: "Money Manager",
+  logo: "https://raw.githubusercontent.com/modsuhail25/Money_Manager/main/mobile/web/icons/Icon-192.png",
+  color: "#4A90E2",
+  supportEmail: "support@moneymanager.com",
+};
+
+const getBaseTemplate = (content) => `
+  <!DOCTYPE html>
+  <html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${brand.name}</title>
+    <style>
+      body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; margin: 0; padding: 0; }
+      .container { max-width: 600px; margin: 20px auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+      .header { background-color: ${brand.color}; padding: 30px; text-align: center; }
+      .header img { width: 80px; height: 80px; border-radius: 20px; background-color: #fff; padding: 5px; }
+      .header h1 { color: #ffffff; margin: 10px 0 0 0; font-size: 24px; }
+      .content { padding: 40px; color: #333333; line-height: 1.6; }
+      .footer { background-color: #f8fafc; padding: 20px; text-align: center; font-size: 12px; color: #94a3b8; }
+      .otp-container { background-color: #f1f5f9; border-radius: 12px; padding: 30px; text-align: center; margin: 30px 0; border: 2px dashed ${brand.color}; }
+      .otp-code { font-size: 42px; font-weight: bold; letter-spacing: 12px; color: ${brand.color}; margin: 0; }
+      .btn { display: inline-block; padding: 12px 24px; background-color: ${brand.color}; color: #ffffff; text-decoration: none; border-radius: 5px; font-weight: bold; }
+      .social-links { margin-top: 15px; }
+      .social-links a { color: ${brand.color}; text-decoration: none; margin: 0 10px; }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <img src="${brand.logo}" alt="${brand.name} Logo">
+        <h1>${brand.name}</h1>
+      </div>
+      <div class="content">
+        ${content}
+      </div>
+      <div class="footer">
+        <p>&copy; ${new Date().getFullYear()} ${brand.name}. All rights reserved.</p>
+        <p>If you have any questions, contact us at <a href="mailto:${brand.supportEmail}" style="color: ${brand.color}">${brand.supportEmail}</a></p>
+      </div>
+    </div>
+  </body>
+  </html>
+`;
+
 /**
  * Sends an email verification OTP.
  */
 export const sendEmailVerificationOtp = async ({ to, name, otp }) => {
+  const content = `
+    <h2 style="color: #1e293b; margin-top: 0;">Verify Your Email</h2>
+    <p>Hi ${name || "there"},</p>
+    <p>Welcome to <strong>${brand.name}</strong>! We're excited to have you on board. To complete your registration and secure your account, please use the verification code below:</p>
+    <div class="otp-container">
+      <p style="margin-bottom: 10px; color: #64748b; font-size: 14px; text-transform: uppercase; letter-spacing: 1px;">Your Verification Code</p>
+      <h1 class="otp-code">${otp}</h1>
+    </div>
+    <p>This code is valid for <strong>${config.auth.emailOtpExpiresMinutes} minutes</strong>. For your security, please do not share this code with anyone.</p>
+    <p>If you didn't create an account with us, you can safely ignore this email.</p>
+  `;
+
   const mailOptions = {
-    from: config.email.from,
+    from: `"${brand.name}" <${config.email.from}>`,
     to,
-    subject: "Email Verification OTP",
-    html: `
-      <div style="font-family: sans-serif; padding: 20px; color: #333; max-width: 600px; margin: auto; border: 1px solid #eee; border-radius: 10px;">
-        <h2 style="color: #2D3748;">Hello ${name || "User"},</h2>
-        <p style="font-size: 16px;">Thank you for registering. Your verification code is:</p>
-        <div style="background-color: #F7FAFC; padding: 20px; text-align: center; border-radius: 5px; margin: 20px 0;">
-          <h1 style="color: #4A90E2; font-size: 36px; letter-spacing: 10px; margin: 0;">${otp}</h1>
-        </div>
-        <p style="font-size: 14px; color: #718096;">This code will expire in ${config.auth.emailOtpExpiresMinutes} minutes.</p>
-        <p style="font-size: 14px; color: #718096;">If you did not request this code, please ignore this email.</p>
-        <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;" />
-        <p style="font-size: 12px; color: #A0AEC0; text-align: center;">&copy; ${new Date().getFullYear()} Money Manager. All rights reserved.</p>
-      </div>
-    `,
+    subject: `Verify your ${brand.name} account`,
+    html: getBaseTemplate(content),
   };
 
   try {
@@ -51,7 +98,6 @@ export const sendEmailVerificationOtp = async ({ to, name, otp }) => {
     logger.info(`Verification email sent: ${info.messageId}`);
   } catch (error) {
     logger.error("Error sending verification email:", error);
-    // In development, still log the OTP so the user can proceed even if SMTP fails
     if (!isProd) {
       console.info(`[DEV][FALLBACK] OTP for ${to}: ${otp}`);
     }
@@ -63,23 +109,23 @@ export const sendEmailVerificationOtp = async ({ to, name, otp }) => {
  * Sends a password reset OTP.
  */
 export const sendPasswordResetOtp = async ({ to, otp }) => {
+  const content = `
+    <h2 style="color: #1e293b; margin-top: 0;">Reset Your Password</h2>
+    <p>Hello,</p>
+    <p>We received a request to reset the password for your <strong>${brand.name}</strong> account. Use the code below to proceed with the reset:</p>
+    <div class="otp-container" style="border-color: #ef4444;">
+      <p style="margin-bottom: 10px; color: #64748b; font-size: 14px; text-transform: uppercase; letter-spacing: 1px;">Reset Code</p>
+      <h1 class="otp-code" style="color: #ef4444;">${otp}</h1>
+    </div>
+    <p>This code will expire in <strong>1 hour</strong>. If you didn't request this, please ignore this email or contact support if you have concerns.</p>
+    <p>Stay secure,<br>The ${brand.name} Team</p>
+  `;
+
   const mailOptions = {
-    from: config.email.from,
+    from: `"${brand.name}" <${config.email.from}>`,
     to,
-    subject: "Password Reset OTP",
-    html: `
-      <div style="font-family: sans-serif; padding: 20px; color: #333; max-width: 600px; margin: auto; border: 1px solid #eee; border-radius: 10px;">
-        <h2 style="color: #2D3748;">Password Reset Request</h2>
-        <p style="font-size: 16px;">We received a request to reset your password. Your reset code is:</p>
-        <div style="background-color: #FFF5F5; padding: 20px; text-align: center; border-radius: 5px; margin: 20px 0;">
-          <h1 style="color: #E53E3E; font-size: 36px; letter-spacing: 10px; margin: 0;">${otp}</h1>
-        </div>
-        <p style="font-size: 14px; color: #718096;">This code will expire in 1 hour.</p>
-        <p style="font-size: 14px; color: #718096;">If you did not request a password reset, please ignore this email.</p>
-        <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;" />
-        <p style="font-size: 12px; color: #A0AEC0; text-align: center;">&copy; ${new Date().getFullYear()} Money Manager. All rights reserved.</p>
-      </div>
-    `,
+    subject: `Password Reset for ${brand.name}`,
+    html: getBaseTemplate(content),
   };
 
   try {

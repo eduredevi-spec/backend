@@ -11,3 +11,4 @@ export { Family } from './Family.js';
 export { AuditLog } from './AuditLog.js';
 export { ExportReport } from './ExportReport.js';
 export { RefreshToken } from './RefreshToken.js';
+export { PendingUser } from './PendingUser.js';
