@@ -94,6 +94,7 @@ export const sendEmailVerificationOtp = async ({ to, name, otp }) => {
   };
 
   try {
+    logger.info(`Attempting to send verification email to ${to}...`);
     const info = await transporter.sendMail(mailOptions);
     logger.info(`Verification email sent: ${info.messageId}`);
   } catch (error) {
