@@ -9,6 +9,7 @@ export const HTTP_STATUS = {
   CONFLICT: 409,
   UNPROCESSABLE: 422,
   TOO_MANY_REQUESTS: 429,
+  SERVICE_UNAVAILABLE: 503,
   INTERNAL_SERVER: 500,
   INTERNAL_SERVER_ERROR: 500, // alias for backward compatibility
 };

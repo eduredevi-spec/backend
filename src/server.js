@@ -6,6 +6,10 @@ import { logger } from "./utils/logger.js";
 async function start() {
   await connectDB();
 
+  if (!config.email.isConfigured) {
+    logger.warn("Email service is not configured; OTP and reset email routes will return 503");
+  }
+
   const server = app.listen(config.port, () => {
     logger.info(`Server running on port ${config.port}`);
   });

@@ -1,3 +1,10 @@
+import "dotenv/config";
+
+const toInt = (value, fallback) => {
+  const parsed = parseInt(value ?? "", 10);
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+
 const config = {
   port: process.env.PORT || 3000,
   nodeEnv: process.env.NODE_ENV || "development",
@@ -22,27 +29,26 @@ const config = {
   },
   email: {
     host: process.env.EMAIL_HOST,
-    port: parseInt(process.env.EMAIL_PORT) || 587,
+    port: toInt(process.env.EMAIL_PORT, 587),
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,
     from: process.env.EMAIL_FROM || "noreply@moneymanager.com",
+    isConfigured: Boolean(
+      process.env.EMAIL_HOST &&
+        process.env.EMAIL_USER &&
+        process.env.EMAIL_PASS,
+    ),
   },
   bcrypt: {
     saltRounds: 12,
   },
   auth: {
-    emailOtpLength: parseInt(process.env.EMAIL_OTP_LENGTH || "6", 10),
-    emailOtpExpiresMinutes: parseInt(
-      process.env.EMAIL_OTP_EXPIRES_MINUTES || "10",
-      10,
-    ),
-    emailOtpMaxAttempts: parseInt(
-      process.env.EMAIL_OTP_MAX_ATTEMPTS || "5",
-      10,
-    ),
-    emailOtpResendCooldownSeconds: parseInt(
-      process.env.EMAIL_OTP_RESEND_COOLDOWN_SECONDS || "60",
-      10,
+    emailOtpLength: toInt(process.env.EMAIL_OTP_LENGTH, 6),
+    emailOtpExpiresMinutes: toInt(process.env.EMAIL_OTP_EXPIRES_MINUTES, 10),
+    emailOtpMaxAttempts: toInt(process.env.EMAIL_OTP_MAX_ATTEMPTS, 5),
+    emailOtpResendCooldownSeconds: toInt(
+      process.env.EMAIL_OTP_RESEND_COOLDOWN_SECONDS,
+      60,
     ),
   },
 };

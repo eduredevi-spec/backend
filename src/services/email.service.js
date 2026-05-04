@@ -1,26 +1,42 @@
 import nodemailer from "nodemailer";
 import config from "../config/index.js";
+import { HTTP_STATUS, ERROR_CODES } from "../constants/index.js";
+import { ApiError } from "../shared/ApiError.js";
 import { logger } from "../utils/logger.js";
 
 const isProd = config.nodeEnv === "production";
+let transporter;
 
-const transporter = nodemailer.createTransport({
-  host: config.email.host,
-  port: config.email.port,
-  secure: config.email.port === 465,
-  auth: {
-    user: config.email.user,
-    pass: config.email.pass,
-  },
-});
-
-transporter.verify((error) => {
-  if (error) {
-    logger.error("SMTP connection error:", error);
-  } else {
-    logger.info("SMTP server is ready to take our messages");
+const assertEmailConfigured = () => {
+  if (config.email.isConfigured) {
+    return;
   }
-});
+
+  throw new ApiError(
+    HTTP_STATUS.SERVICE_UNAVAILABLE,
+    "Email service is currently unavailable. Please try again later.",
+    ERROR_CODES.EMAIL_SERVICE_UNAVAILABLE,
+  );
+};
+
+const getTransporter = () => {
+  assertEmailConfigured();
+
+  transporter ??= nodemailer.createTransport({
+    host: config.email.host,
+    port: config.email.port,
+    secure: config.email.port === 465,
+    auth: {
+      user: config.email.user,
+      pass: config.email.pass,
+    },
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 15000,
+  });
+
+  return transporter;
+};
 
 // Brand configuration
 const brand = {
@@ -95,14 +111,21 @@ export const sendEmailVerificationOtp = async ({ to, name, otp }) => {
 
   try {
     logger.info(`Attempting to send verification email to ${to}...`);
-    const info = await transporter.sendMail(mailOptions);
+    const info = await getTransporter().sendMail(mailOptions);
     logger.info(`Verification email sent: ${info.messageId}`);
   } catch (error) {
     logger.error("Error sending verification email:", error);
     if (!isProd) {
       console.info(`[DEV][FALLBACK] OTP for ${to}: ${otp}`);
     }
-    throw error;
+    if (error instanceof ApiError) {
+      throw error;
+    }
+    throw new ApiError(
+      HTTP_STATUS.SERVICE_UNAVAILABLE,
+      "Email service is currently unavailable. Please try again later.",
+      ERROR_CODES.EMAIL_SERVICE_UNAVAILABLE,
+    );
   }
 };
 
@@ -130,13 +153,20 @@ export const sendPasswordResetOtp = async ({ to, otp }) => {
   };
 
   try {
-    const info = await transporter.sendMail(mailOptions);
+    const info = await getTransporter().sendMail(mailOptions);
     logger.info(`Password reset email sent: ${info.messageId}`);
   } catch (error) {
     logger.error("Error sending password reset email:", error);
     if (!isProd) {
       console.info(`[DEV][FALLBACK] Password Reset OTP for ${to}: ${otp}`);
     }
-    throw error;
+    if (error instanceof ApiError) {
+      throw error;
+    }
+    throw new ApiError(
+      HTTP_STATUS.SERVICE_UNAVAILABLE,
+      "Email service is currently unavailable. Please try again later.",
+      ERROR_CODES.EMAIL_SERVICE_UNAVAILABLE,
+    );
   }
 };
