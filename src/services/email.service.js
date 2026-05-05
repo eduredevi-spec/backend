@@ -1,4 +1,5 @@
 import nodemailer from "nodemailer";
+import { lookup } from "node:dns";
 import config from "../config/index.js";
 import { HTTP_STATUS, ERROR_CODES } from "../constants/index.js";
 import { ApiError } from "../shared/ApiError.js";
@@ -22,10 +23,11 @@ const assertEmailConfigured = () => {
 const getTransporter = () => {
   assertEmailConfigured();
 
-  transporter ??= nodemailer.createTransport({
+  const transportOptions = {
     host: config.email.host,
     port: config.email.port,
-    secure: config.email.port === 465,
+    secure: config.email.secure,
+    requireTLS: config.email.requireTls,
     auth: {
       user: config.email.user,
       pass: config.email.pass,
@@ -33,7 +35,19 @@ const getTransporter = () => {
     connectionTimeout: 10000,
     greetingTimeout: 10000,
     socketTimeout: 15000,
-  });
+  };
+
+  if (config.email.ipFamily) {
+    transportOptions.family = config.email.ipFamily;
+    transportOptions.lookup = (hostname, options, callback) =>
+      lookup(
+        hostname,
+        { ...options, family: config.email.ipFamily, all: false },
+        callback,
+      );
+  }
+
+  transporter ??= nodemailer.createTransport(transportOptions);
 
   return transporter;
 };
@@ -114,7 +128,18 @@ export const sendEmailVerificationOtp = async ({ to, name, otp }) => {
     const info = await getTransporter().sendMail(mailOptions);
     logger.info(`Verification email sent: ${info.messageId}`);
   } catch (error) {
-    logger.error("Error sending verification email:", error);
+    logger.error("Error sending verification email:", {
+      message: error.message,
+      code: error.code,
+      errno: error.errno,
+      syscall: error.syscall,
+      address: error.address,
+      port: error.port,
+      command: error.command,
+      emailHost: config.email.host,
+      emailPort: config.email.port,
+      emailIpFamily: config.email.ipFamily,
+    });
     if (!isProd) {
       console.info(`[DEV][FALLBACK] OTP for ${to}: ${otp}`);
     }
@@ -156,7 +181,18 @@ export const sendPasswordResetOtp = async ({ to, otp }) => {
     const info = await getTransporter().sendMail(mailOptions);
     logger.info(`Password reset email sent: ${info.messageId}`);
   } catch (error) {
-    logger.error("Error sending password reset email:", error);
+    logger.error("Error sending password reset email:", {
+      message: error.message,
+      code: error.code,
+      errno: error.errno,
+      syscall: error.syscall,
+      address: error.address,
+      port: error.port,
+      command: error.command,
+      emailHost: config.email.host,
+      emailPort: config.email.port,
+      emailIpFamily: config.email.ipFamily,
+    });
     if (!isProd) {
       console.info(`[DEV][FALLBACK] Password Reset OTP for ${to}: ${otp}`);
     }

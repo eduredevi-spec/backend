@@ -20,7 +20,7 @@ const familySchema = new mongoose.Schema(
     name: { type: String, required: true, trim: true, maxlength: 50 },
     ownerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     members: { type: [memberSchema], default: [] },
-    inviteCode: { type: String, unique: true },
+    inviteCode: { type: String },
     sharedBudgets: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Budget' }],
     isActive: { type: Boolean, default: true },
   },

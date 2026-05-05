@@ -5,6 +5,34 @@ const toInt = (value, fallback) => {
   return Number.isFinite(parsed) ? parsed : fallback;
 };
 
+const toBool = (value, fallback = false) => {
+  if (typeof value !== "string") {
+    return fallback;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  if (["true", "1", "yes", "on"].includes(normalized)) {
+    return true;
+  }
+  if (["false", "0", "no", "off"].includes(normalized)) {
+    return false;
+  }
+
+  return fallback;
+};
+
+const hasValue = (value) => typeof value === "string" && value.trim().length > 0;
+
+const emailEnvFields = {
+  EMAIL_HOST: process.env.EMAIL_HOST,
+  EMAIL_USER: process.env.EMAIL_USER,
+  EMAIL_PASS: process.env.EMAIL_PASS,
+};
+
+const missingEmailEnvFields = Object.entries(emailEnvFields)
+  .filter(([, value]) => !hasValue(value))
+  .map(([key]) => key);
+
 const config = {
   port: process.env.PORT || 3000,
   nodeEnv: process.env.NODE_ENV || "development",
@@ -30,14 +58,16 @@ const config = {
   email: {
     host: process.env.EMAIL_HOST,
     port: toInt(process.env.EMAIL_PORT, 587),
+    secure: toBool(process.env.EMAIL_SECURE, toInt(process.env.EMAIL_PORT, 587) === 465),
+    requireTls: toBool(process.env.EMAIL_REQUIRE_TLS, true),
+    ipFamily: [4, 6].includes(toInt(process.env.EMAIL_IP_FAMILY, 0))
+      ? toInt(process.env.EMAIL_IP_FAMILY, 0)
+      : undefined,
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,
     from: process.env.EMAIL_FROM || "noreply@moneymanager.com",
-    isConfigured: Boolean(
-      process.env.EMAIL_HOST &&
-        process.env.EMAIL_USER &&
-        process.env.EMAIL_PASS,
-    ),
+    isConfigured: missingEmailEnvFields.length == 0,
+    missingEnvFields: missingEmailEnvFields,
   },
   bcrypt: {
     saltRounds: 12,

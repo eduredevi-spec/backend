@@ -7,7 +7,10 @@ async function start() {
   await connectDB();
 
   if (!config.email.isConfigured) {
-    logger.warn("Email service is not configured; OTP and reset email routes will return 503");
+    logger.warn(
+      "Email service is not configured; OTP and reset email routes will return 503",
+      { missingEmailEnvFields: config.email.missingEnvFields },
+    );
   }
 
   const server = app.listen(config.port, () => {
