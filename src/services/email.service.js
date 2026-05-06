@@ -43,7 +43,6 @@ const getTransporter = () => {
 
   return transporter;
 };
-};
 
 // Brand configuration
 const brand = {
