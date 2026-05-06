@@ -60,9 +60,9 @@ const config = {
     port: toInt(process.env.EMAIL_PORT, 587),
     secure: toBool(process.env.EMAIL_SECURE, toInt(process.env.EMAIL_PORT, 587) === 465),
     requireTls: toBool(process.env.EMAIL_REQUIRE_TLS, true),
-    ipFamily: [4, 6].includes(toInt(process.env.EMAIL_IP_FAMILY, 0))
-      ? toInt(process.env.EMAIL_IP_FAMILY, 0)
-      : undefined,
+    ipFamily: [4, 6].includes(toInt(process.env.EMAIL_IP_FAMILY, 4))
+      ? toInt(process.env.EMAIL_IP_FAMILY, 4)
+      : 4,
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,
     from: process.env.EMAIL_FROM || "noreply@moneymanager.com",

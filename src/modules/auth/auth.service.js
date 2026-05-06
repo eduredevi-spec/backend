@@ -404,3 +404,149 @@ export const resendEmailVerificationOtp = async ({ email }) => {
 
   await issueEmailVerificationOtp(user, { enforceCooldown: true });
 };
+
+/**
+ * Rotates a refresh token: validates the old one, checks for reuse (which
+ * revokes the session), and returns a new token pair.
+ */
+export const refreshToken = async (token, deviceInfo = {}) => {
+  if (!token) {
+    throw new ApiError(HTTP_STATUS.BAD_REQUEST, "Refresh token is required");
+  }
+
+  let payload;
+  try {
+    payload = verifyRefreshToken(token);
+  } catch (err) {
+    throw new ApiError(
+      HTTP_STATUS.UNAUTHORIZED,
+      "Invalid or expired refresh token",
+      ERROR_CODES.TOKEN_EXPIRED,
+    );
+  }
+
+  const { userId, familyId } = payload;
+
+  // Find all active tokens in this family
+  const tokens = await RefreshToken.find({ familyId, isRevoked: false });
+
+  // Check if THIS specific token (its hash) exists and is active.
+  let currentTokenDoc = null;
+  for (const doc of tokens) {
+    if (await comparePassword(token, doc.tokenHash)) {
+      currentTokenDoc = doc;
+      break;
+    }
+  }
+
+  // REUSE DETECTION: If we have a valid JWT but it's not in our DB as active,
+  // it means it was already used to get a new pair. Revoke the whole family.
+  if (!currentTokenDoc) {
+    await revokeFamily(familyId);
+    throw new ApiError(
+      HTTP_STATUS.UNAUTHORIZED,
+      "Refresh token reuse detected. Please log in again",
+      ERROR_CODES.REFRESH_TOKEN_REUSE_DETECTED,
+    );
+  }
+
+  // Revoke the old token now that it's being rotated
+  currentTokenDoc.isRevoked = true;
+  await currentTokenDoc.save();
+
+  // Issue new pair
+  const newTokens = generateTokenPair(userId, familyId);
+  await persistRefreshToken(
+    userId,
+    newTokens.refreshToken,
+    familyId,
+    deviceInfo,
+  );
+
+  return newTokens;
+};
+
+/**
+ * Revokes tokens. If a specific token is provided, only that session is killed.
+ * If no token is provided, ALL sessions for the user are killed.
+ */
+export const logout = async (userId, token) => {
+  if (token) {
+    try {
+      const payload = verifyRefreshToken(token);
+      await revokeFamily(payload.familyId);
+    } catch (err) {
+      // If token is invalid/expired, we can't find familyId, but that's okay for logout
+    }
+  } else {
+    await RefreshToken.updateMany({ userId }, { isRevoked: true });
+  }
+};
+
+/**
+ * Generates a reset OTP and sends it via email.
+ */
+export const forgotPassword = async (email) => {
+  const user = await User.findOne({ email, deletedAt: null });
+  if (!user) return; // Silent return to prevent email enumeration
+
+  const otp = generateNumericOtp(6);
+  user.passwordResetToken = sha256Hash(otp);
+  user.passwordResetExpires = new Date(Date.now() + PASSWORD_RESET_EXPIRES_MS);
+  await user.save();
+
+  await sendPasswordResetOtp({ to: email, otp });
+};
+
+/**
+ * Validates the reset OTP and updates the password.
+ */
+export const resetPassword = async (otp, newPassword) => {
+  const otpHash = sha256Hash(otp);
+  const user = await User.findOne({
+    passwordResetToken: otpHash,
+    passwordResetExpires: { $gt: new Date() },
+    deletedAt: null,
+  }).select("+password");
+
+  if (!user) {
+    throw new ApiError(
+      HTTP_STATUS.BAD_REQUEST,
+      "Invalid or expired reset code",
+      ERROR_CODES.EMAIL_OTP_INVALID,
+    );
+  }
+
+  user.password = await hashPassword(newPassword);
+  user.passwordResetToken = null;
+  user.passwordResetExpires = null;
+  user.loginAttempts = 0;
+  user.lockUntil = null;
+
+  await user.save();
+};
+
+/**
+ * Updates password for an already authenticated user.
+ */
+export const changePassword = async (
+  userId,
+  { currentPassword, newPassword },
+) => {
+  const user = await User.findById(userId).select("+password");
+  if (!user) {
+    throw new ApiError(HTTP_STATUS.NOT_FOUND, "User not found");
+  }
+
+  const valid = await comparePassword(currentPassword, user.password);
+  if (!valid) {
+    throw new ApiError(
+      HTTP_STATUS.UNAUTHORIZED,
+      "Incorrect current password",
+      ERROR_CODES.INVALID_CREDENTIALS,
+    );
+  }
+
+  user.password = await hashPassword(newPassword);
+  await user.save();
+};
