@@ -57,8 +57,8 @@ const config = {
   },
   email: {
     host: process.env.EMAIL_HOST,
-    port: toInt(process.env.EMAIL_PORT, 587),
-    secure: toBool(process.env.EMAIL_SECURE, toInt(process.env.EMAIL_PORT, 587) === 465),
+    port: toInt(process.env.EMAIL_PORT, 465),
+    secure: toBool(process.env.EMAIL_SECURE, toInt(process.env.EMAIL_PORT, 465) === 465),
     requireTls: toBool(process.env.EMAIL_REQUIRE_TLS, true),
     ipFamily: [4, 6].includes(toInt(process.env.EMAIL_IP_FAMILY, 4))
       ? toInt(process.env.EMAIL_IP_FAMILY, 4)
