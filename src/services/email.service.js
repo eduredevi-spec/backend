@@ -32,24 +32,17 @@ const getTransporter = () => {
       user: config.email.user,
       pass: config.email.pass,
     },
-    connectionTimeout: 10000,
-    greetingTimeout: 10000,
-    socketTimeout: 15000,
+    // Explicitly force IPv4 and increase timeouts for Render stability
+    family: 4,
+    connectionTimeout: 30000,
+    greetingTimeout: 30000,
+    socketTimeout: 45000,
   };
-
-  if (config.email.ipFamily) {
-    transportOptions.family = config.email.ipFamily;
-    transportOptions.lookup = (hostname, options, callback) =>
-      lookup(
-        hostname,
-        { ...options, family: config.email.ipFamily, all: false },
-        callback,
-      );
-  }
 
   transporter ??= nodemailer.createTransport(transportOptions);
 
   return transporter;
+};
 };
 
 // Brand configuration

@@ -1,7 +1,13 @@
+import dns from "node:dns";
 import app from "./app.js";
 import config from "./config/index.js";
 import { connectDB, disconnectDB } from "./loaders/mongoose.js";
 import { logger } from "./utils/logger.js";
+
+// Force IPv4 as default for all network operations (fixes Render ENETUNREACH)
+if (dns.setDefaultResultOrder) {
+  dns.setDefaultResultOrder("ipv4first");
+}
 
 async function start() {
   await connectDB();
